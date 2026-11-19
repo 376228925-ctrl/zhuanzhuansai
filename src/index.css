@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Plus Jakarta Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-sans: "Noto Sans SC", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-canvas: #F7F8F5;
+  --color-surface: #FFFFFF;
+  --color-surface-subtle: #EFF2EC;
+  --color-court-dark: #142621;
+  --color-court-deep: #185A43;
+  --color-court-lime: #D4F34A;
+  --color-ink: #111816;
+  --color-ink-muted: #5A6560;
+  --color-border-hairline: #E4E8E0;
+  --color-loss: #B84A39;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Smooth touch scroll without visible scrollbars on horizontal round pills */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
