@@ -1,17 +1,29 @@
 import { useState } from 'react';
-import { Award, ChevronRight, Share2 } from 'lucide-react';
-import type { PlayerStanding } from '../types/tournament';
+import { Award, ChevronRight, Sparkles } from 'lucide-react';
+import type {
+  Player,
+  PlayerStanding,
+  ScheduleFairnessReport,
+  TournamentState,
+} from '../types/tournament';
+import { AiAnalysisPanel } from './AiAnalysisPanel';
 import { PlayerDetailContent, PlayerDetailSheet } from './PlayerDetailSheet';
 
 interface StandingsViewProps {
+  state: TournamentState;
   standings: PlayerStanding[];
+  fairness: ScheduleFairnessReport;
+  playerMap: Map<string, Player>;
   completedMatches: number;
   totalMatches: number;
   onOpenReport: () => void;
 }
 
 export function StandingsView({
+  state,
   standings,
+  fairness,
+  playerMap,
   completedMatches,
   totalMatches,
   onOpenReport,
@@ -27,14 +39,14 @@ export function StandingsView({
   const topThree = standings.slice(0, 3);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {/* Header Row */}
       <div className="flex items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-[#142621]">实时积分榜</h1>
-          <p className="text-xs sm:text-sm text-[#5A6560] mt-1">
+          <h1 className="text-xl sm:text-2xl font-extrabold text-[#F4F7FB]">实时积分榜</h1>
+          <p className="text-xs sm:text-sm text-[#8E9AB2] mt-1">
             胜场 · 胜率 · 净胜分 · 总得分 · 已完赛{' '}
-            <span className="font-mono tabular-nums">
+            <span className="font-mono tabular-nums text-[#D4FF2B]">
               {completedMatches}/{totalMatches}
             </span>{' '}
             场
@@ -43,19 +55,19 @@ export function StandingsView({
         <button
           type="button"
           onClick={onOpenReport}
-          className="hidden sm:inline-flex min-h-[44px] px-4 rounded-xl bg-[#142621] text-white text-sm font-medium hover:bg-[#1E3830] active:scale-[0.98] transition-all items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
+          className="hidden sm:inline-flex min-h-[44px] px-4 rounded-xl bg-[#D4FF2B] text-[#080B10] text-sm font-bold hover:bg-[#E1FF61] active:scale-[0.98] transition-all items-center justify-center gap-2 whitespace-nowrap shrink-0 cursor-pointer"
         >
-          <Share2 className="w-4 h-4 text-[#D4F34A]" aria-hidden="true" />
-          <span>生成微信战报</span>
+          <Sparkles className="w-4 h-4" aria-hidden="true" />
+          <span>生成战报海报</span>
         </button>
       </div>
 
-      {/* Top 3 Editorial Podium Strip */}
+      {/* Grand Slam Championship Podium */}
       {topThree.length > 0 && (
         <section aria-label="前三名领奖台" className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
           {topThree.map((item, idx) => {
             const isFirst = idx === 0;
-            const rankLabels = ['第 1 名 · 领跑', '第 2 名', '第 3 名'];
+            const rankLabels = ['NO.01 · 本场 MVP 领跑', 'NO.02 · 榜眼', 'NO.03 · 探花'];
             return (
               <button
                 key={item.player.id}
@@ -64,39 +76,39 @@ export function StandingsView({
                   setSelectedPlayerId(item.player.id);
                   setMobileSheetOpen(true);
                 }}
-                className={`rounded-2xl p-5 text-left transition-all cursor-pointer active:scale-[0.99] ${
+                className={`relative rounded-3xl p-5 text-left overflow-hidden transition-all cursor-pointer active:scale-[0.99] border ${
                   isFirst
-                    ? 'bg-[#142621] text-white'
-                    : 'bg-white border border-[#E4E8E0] text-[#111816] hover:border-[#C5D0BF]'
+                    ? 'bg-gradient-to-br from-[#12368A] via-[#0E2457] to-[#111620] border-[#D4FF2B]/60 text-white'
+                    : 'bg-[#111620] border-white/[0.08] text-[#F4F7FB] hover:border-white/25'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span
-                    className={`text-xs font-semibold ${
-                      isFirst ? 'text-[#D4F34A]' : 'text-[#5A6560]'
+                    className={`text-xs font-bold font-mono ${
+                      isFirst ? 'text-[#D4FF2B]' : 'text-[#8E9AB2]'
                     }`}
                   >
                     {rankLabels[idx]}
                   </span>
-                  {isFirst && <Award className="w-4 h-4 text-[#D4F34A]" aria-hidden="true" />}
+                  {isFirst && <Award className="w-4 h-4 text-[#D4FF2B]" aria-hidden="true" />}
                 </div>
-                <div className="mt-2.5 flex items-baseline justify-between gap-2">
-                  <span className="text-lg font-bold truncate">{item.player.name}</span>
+                <div className="mt-3 flex items-baseline justify-between gap-2">
+                  <span className="text-xl font-extrabold truncate">{item.player.name}</span>
                   <span
-                    className={`font-mono tabular-nums text-lg font-bold ${
+                    className={`font-score italic text-4xl font-extrabold leading-none ${
                       isFirst
-                        ? 'text-[#D4F34A]'
+                        ? 'text-[#D4FF2B]'
                         : item.pointDiff >= 0
-                        ? 'text-[#185A43]'
-                        : 'text-[#B84A39]'
+                        ? 'text-[#22D38B]'
+                        : 'text-[#FF6448]'
                     }`}
                   >
                     {item.pointDiff > 0 ? `+${item.pointDiff}` : item.pointDiff}
                   </span>
                 </div>
                 <div
-                  className={`mt-1.5 text-xs font-mono tabular-nums flex items-center gap-2 ${
-                    isFirst ? 'text-white/75' : 'text-[#5A6560]'
+                  className={`mt-2.5 text-xs font-mono tabular-nums flex items-center gap-2 ${
+                    isFirst ? 'text-white/80' : 'text-[#8E9AB2]'
                   }`}
                 >
                   <span>
@@ -106,6 +118,8 @@ export function StandingsView({
                   <span>
                     胜率 {item.played > 0 ? `${Math.round(item.winRate * 100)}%` : '--'}
                   </span>
+                  <span aria-hidden="true">·</span>
+                  <span>DUPR {item.player.rating.toFixed(1)}</span>
                 </div>
               </button>
             );
@@ -113,10 +127,13 @@ export function StandingsView({
         </section>
       )}
 
+      {/* DeepSeek AI Tournament Intelligence Panel */}
+      <AiAnalysisPanel state={state} standings={standings} fairness={fairness} />
+
       {/* Main Split: Left Standings Table + Right Desktop Player Detail */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <section className="lg:col-span-8 bg-white rounded-2xl border border-[#E4E8E0] overflow-hidden">
-          <div className="grid grid-cols-[30px_minmax(96px,1fr)_50px_52px_48px_18px] sm:grid-cols-[56px_1fr_92px_88px_88px_32px] items-center gap-1 sm:gap-2 px-3 sm:px-4 py-3 bg-[#F7F8F5] border-b border-[#E4E8E0] text-xs font-semibold text-[#5A6560]">
+        <section className="lg:col-span-8 bg-[#111620] rounded-3xl border border-white/[0.08] overflow-hidden">
+          <div className="grid grid-cols-[32px_minmax(96px,1fr)_52px_54px_48px_18px] sm:grid-cols-[56px_1fr_92px_88px_88px_32px] items-center gap-1 sm:gap-2 px-3 sm:px-5 py-3 bg-[#161D2A] border-b border-white/[0.06] text-xs font-semibold text-[#8E9AB2]">
             <span className="text-center">#</span>
             <span>球员</span>
             <span className="text-right">胜负</span>
@@ -125,7 +142,7 @@ export function StandingsView({
             <span aria-hidden="true" />
           </div>
 
-          <div className="divide-y divide-[#EFF2EC]">
+          <div className="divide-y divide-white/[0.06]">
             {standings.map((row) => {
               const isSelected = selectedStanding?.player.id === row.player.id;
               return (
@@ -137,52 +154,56 @@ export function StandingsView({
                     setMobileSheetOpen(true);
                   }}
                   aria-label={`查看 ${row.player.name} 详细战绩，第${row.rank}名`}
-                  className={`w-full min-h-[60px] grid grid-cols-[30px_minmax(96px,1fr)_50px_52px_48px_18px] sm:grid-cols-[56px_1fr_92px_88px_88px_32px] items-center gap-1 sm:gap-2 px-3 sm:px-4 py-3 text-left transition-colors cursor-pointer ${
-                    isSelected ? 'bg-[#EEF6F1]/70' : 'hover:bg-[#F7F8F5]'
+                  className={`w-full min-h-[64px] grid grid-cols-[32px_minmax(96px,1fr)_52px_54px_48px_18px] sm:grid-cols-[56px_1fr_92px_88px_88px_32px] items-center gap-1 sm:gap-2 px-3 sm:px-5 py-3 text-left transition-colors cursor-pointer ${
+                    isSelected ? 'bg-[#192338]' : 'hover:bg-white/[0.03]'
                   }`}
                 >
                   <span
-                    className={`font-mono tabular-nums text-sm font-bold text-center ${
-                      row.rank <= 3 ? 'text-[#185A43]' : 'text-[#5A6560]'
+                    className={`font-score italic text-xl font-extrabold text-center ${
+                      row.rank === 1
+                        ? 'text-[#D4FF2B]'
+                        : row.rank <= 3
+                        ? 'text-[#7BB1FF]'
+                        : 'text-[#66738D]'
                     }`}
                   >
-                    {row.rank}
+                    {String(row.rank).padStart(2, '0')}
                   </span>
 
                   <div className="min-w-0 pr-1">
-                    <div className="font-semibold text-sm text-[#111816] truncate">
+                    <div className="font-semibold text-sm text-[#F4F7FB] truncate">
                       {row.player.name}
                       {!row.player.active && (
-                        <span className="ml-1 text-xs font-normal text-[#5A6560]">(暂离)</span>
+                        <span className="ml-1 text-xs font-normal text-[#8E9AB2]">(暂离)</span>
                       )}
                     </div>
-                    <div className="text-[11px] sm:text-xs text-[#5A6560] font-mono tabular-nums whitespace-nowrap">
+                    <div className="text-[11px] sm:text-xs text-[#8E9AB2] font-mono tabular-nums whitespace-nowrap">
                       DUPR {row.player.rating.toFixed(1)}
                       <span className="hidden sm:inline"> · 得{row.pointsFor}分</span>
                     </div>
                   </div>
 
-                  <span className="font-mono tabular-nums text-sm font-semibold text-[#142621] text-right whitespace-nowrap">
+                  <span className="font-mono tabular-nums text-sm font-semibold text-[#F4F7FB] text-right whitespace-nowrap">
                     {row.wins}-{row.losses}
                   </span>
 
                   <span
-                    className={`font-mono tabular-nums text-sm font-bold text-right whitespace-nowrap ${
+                    className={`font-score italic text-2xl font-extrabold text-right whitespace-nowrap ${
                       row.pointDiff > 0
-                        ? 'text-[#185A43]'
+                        ? 'text-[#22D38B]'
                         : row.pointDiff < 0
-                        ? 'text-[#B84A39]'
-                        : 'text-[#5A6560]'
+                        ? 'text-[#FF6448]'
+                        : 'text-[#8E9AB2]'
                     }`}
                   >
                     {row.pointDiff > 0 ? `+${row.pointDiff}` : row.pointDiff}
                   </span>
 
-                  <span className="font-mono tabular-nums text-xs sm:text-sm text-[#5A6560] text-right whitespace-nowrap">
+                  <span className="font-mono tabular-nums text-xs sm:text-sm text-[#8E9AB2] text-right whitespace-nowrap">
                     {row.played > 0 ? `${Math.round(row.winRate * 100)}%` : '--'}
                   </span>
 
-                  <ChevronRight className="w-4 h-4 text-[#9AA59E] justify-self-end" aria-hidden="true" />
+                  <ChevronRight className="w-4 h-4 text-[#66738D] justify-self-end" aria-hidden="true" />
                 </button>
               );
             })}
@@ -190,11 +211,15 @@ export function StandingsView({
         </section>
 
         {/* Desktop Side Panel for Selected Player */}
-        <aside className="hidden lg:block lg:col-span-4 bg-white rounded-2xl border border-[#E4E8E0] p-5 sticky top-24">
+        <aside className="hidden lg:block lg:col-span-4 bg-[#111620] rounded-3xl border border-white/[0.08] p-5 sticky top-24">
           {selectedStanding ? (
-            <PlayerDetailContent standing={selectedStanding} />
+            <PlayerDetailContent
+              standing={selectedStanding}
+              state={state}
+              playerMap={playerMap}
+            />
           ) : (
-            <p className="text-sm text-[#5A6560]">选择左侧任意球员查看详细战绩</p>
+            <p className="text-sm text-[#8E9AB2]">选择左侧任意球员查看详细战绩</p>
           )}
         </aside>
       </div>
@@ -203,6 +228,8 @@ export function StandingsView({
       {mobileSheetOpen && (
         <PlayerDetailSheet
           standing={selectedStanding}
+          state={state}
+          playerMap={playerMap}
           onClose={() => setMobileSheetOpen(false)}
         />
       )}

@@ -1,29 +1,40 @@
 import { useState } from 'react';
-import { Download, RefreshCw, RotateCcw, Shuffle, Sparkles } from 'lucide-react';
+import { Cloud, Lock, RefreshCw, RotateCcw, ShieldCheck, Shuffle, Sparkles } from 'lucide-react';
 import type {
   ScheduleFairnessReport,
   ScoringTarget,
   TournamentConfig,
   TournamentFormat,
   TournamentState,
+  UserAccount,
 } from '../types/tournament';
+import { canPublishTournament } from '../utils/authStore';
 import { getRecommendedRounds } from '../utils/scheduler';
+import { getThemeConfig, type ScenicThemeId } from '../utils/themes';
 
 interface SetupViewProps {
   state: TournamentState;
+  activeTheme: ScenicThemeId;
+  currentUser: UserAccount | null;
   fairness: ScheduleFairnessReport;
+  roomCode: string | null;
   onApplyConfigAndGenerate: (config: TournamentConfig) => void;
   onShuffleSchedule: () => void;
+  onOpenCloudSync: () => void;
+  onPromptLogin: () => void;
   onResetDemo: () => void;
 }
-
-const HERO_IMAGE_URL = '/src/assets/images/pickleball_court_hero_1795077383246.jpg';
 
 const FORMAT_OPTIONS: Array<{
   id: TournamentFormat;
   title: string;
   desc: string;
 }> = [
+  {
+    id: 'ai_smart',
+    title: 'AI 智适应排阵（DeepSeek）',
+    desc: '自动记住球友跨场历史战绩与动态等效分，支持按「均势/带飞/复仇/混双」风格逐轮智排。',
+  },
   {
     id: 'classic',
     title: '经典全员转',
@@ -48,9 +59,14 @@ const FORMAT_OPTIONS: Array<{
 
 export function SetupView({
   state,
+  activeTheme,
+  currentUser,
   fairness,
+  roomCode,
   onApplyConfigAndGenerate,
   onShuffleSchedule,
+  onOpenCloudSync,
+  onPromptLogin,
   onResetDemo,
 }: SetupViewProps) {
   const [title, setTitle] = useState(state.config.title);
@@ -63,12 +79,18 @@ export function SetupView({
   const [roundMinutes, setRoundMinutes] = useState<number>(state.config.roundMinutes);
   const [imgFailed, setImgFailed] = useState(false);
 
+  const themeCfg = getThemeConfig(activeTheme);
+  const canPublish = canPublishTournament(currentUser);
   const activePlayers = state.players.filter((p) => p.active).length;
   const maxCourts = Math.max(1, Math.min(6, Math.floor(activePlayers / 4) || 1));
   const recommendedRounds = getRecommendedRounds(activePlayers, courtCount);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canPublish) {
+      onPromptLogin();
+      return;
+    }
     onApplyConfigAndGenerate({
       title: title.trim() || '匹克球智能转转赛',
       venue: venue.trim(),
@@ -81,24 +103,14 @@ export function SetupView({
     });
   };
 
-  const handleExportJson = () => {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${state.config.title.replace(/\s+/g, '_')}_存档.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="space-y-6">
-      {/* Editorial Court Hero Banner with Scrim & Zero-Broken-Image Fallback */}
-      <section className="relative rounded-3xl overflow-hidden bg-[#142621] min-h-[180px] sm:min-h-[210px] flex items-end">
+      {/* Scenic Setup Hero */}
+      <section className="relative rounded-3xl overflow-hidden border border-white/[0.16] min-h-[185px] sm:min-h-[205px] flex items-end shadow-xl">
         {!imgFailed ? (
           <img
-            src={HERO_IMAGE_URL}
-            alt="阳光下的匹克球场与碳纤维球拍"
+            src={themeCfg.bgImage}
+            alt={`${themeCfg.name} 匹克球场`}
             referrerPolicy="no-referrer"
             onError={() => setImgFailed(true)}
             className="absolute inset-0 w-full h-full object-cover object-center"
@@ -106,48 +118,49 @@ export function SetupView({
         ) : (
           <div
             aria-hidden="true"
-            className="absolute inset-0 bg-gradient-to-br from-[#185A43] via-[#142621] to-[#0D1A16]"
+            className="absolute inset-0 bg-gradient-to-br from-[#1B2A4A] to-[#0B0F18]"
           />
         )}
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-gradient-to-t from-[#142621]/92 via-[#142621]/55 to-[#142621]/20"
+          className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/52 to-black/20"
         />
 
         <div className="relative z-10 w-full p-5 sm:p-7 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div className="space-y-1">
-            <p className="text-xs font-medium text-[#D4F34A]">智能赛制与排阵中心</p>
-            <h1 className="text-xl sm:text-2xl font-bold text-white">
-              自定义转转赛规则
-            </h1>
+            <p className="text-xs font-bold theme-accent-text flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
+              <span>
+                {canPublish
+                  ? `管理员模式（${currentUser?.displayName}）· 可发布正式赛制`
+                  : '赛制浏览模式 · 发布需管理员权限'}
+              </span>
+            </p>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-white">自定义转转赛规则与发布</h1>
             <p className="text-xs sm:text-sm text-white/80">
               当前 {activePlayers} 位活跃球员 · 最多可同时开 {maxCourts} 片场地
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onShuffleSchedule}
-              className="min-h-[44px] px-4 rounded-xl bg-white/15 backdrop-blur-sm text-white text-xs sm:text-sm font-medium hover:bg-white/25 transition-colors inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer"
-            >
-              <Shuffle className="w-4 h-4 text-[#D4F34A]" aria-hidden="true" />
-              <span>换一套排阵</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={canPublish ? onShuffleSchedule : onPromptLogin}
+            className="min-h-[44px] px-4 rounded-xl bg-white/[0.14] backdrop-blur-md border border-white/[0.18] text-white text-xs sm:text-sm font-semibold hover:bg-white/[0.24] transition-colors inline-flex items-center gap-1.5 whitespace-nowrap cursor-pointer self-start sm:self-auto"
+          >
+            <Shuffle className="w-4 h-4 theme-accent-text" aria-hidden="true" />
+            <span>{canPublish ? '换一套排阵' : '登录管理员'}</span>
+          </button>
         </div>
       </section>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left 8-col Config Form */}
         <form
           onSubmit={handleSubmit}
-          className="lg:col-span-8 bg-white rounded-2xl border border-[#E4E8E0] p-5 sm:p-6 space-y-6"
+          className="lg:col-span-8 bg-[#111620] rounded-3xl border border-white/[0.08] p-5 sm:p-6 space-y-6"
         >
-          {/* Basic Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="setup-title" className="block text-xs font-semibold text-[#5A6560] mb-1.5">
+              <label htmlFor="setup-title" className="block text-xs font-bold text-[#8E9AB2] mb-1.5">
                 赛事名称
               </label>
               <input
@@ -155,11 +168,11 @@ export function SetupView({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border border-[#D8DFD3] bg-[#F7F8F5] px-3.5 text-sm text-[#111816] focus:outline-none focus:border-[#185A43] focus:bg-white"
+                className="w-full min-h-[44px] rounded-xl border border-white/[0.1] bg-[#0A0E16] px-3.5 text-sm text-[#F4F7FB] focus:outline-none focus:border-[#D4FF2B]"
               />
             </div>
             <div>
-              <label htmlFor="setup-venue" className="block text-xs font-semibold text-[#5A6560] mb-1.5">
+              <label htmlFor="setup-venue" className="block text-xs font-bold text-[#8E9AB2] mb-1.5">
                 球馆与场地说明
               </label>
               <input
@@ -168,14 +181,13 @@ export function SetupView({
                 value={venue}
                 onChange={(e) => setVenue(e.target.value)}
                 placeholder="例如：滨江匹克球公园 1-2号场"
-                className="w-full min-h-[44px] rounded-xl border border-[#D8DFD3] bg-[#F7F8F5] px-3.5 text-sm text-[#111816] focus:outline-none focus:border-[#185A43] focus:bg-white"
+                className="w-full min-h-[44px] rounded-xl border border-white/[0.1] bg-[#0A0E16] px-3.5 text-sm text-[#F4F7FB] placeholder:text-[#5B677E] focus:outline-none focus:border-[#D4FF2B]"
               />
             </div>
           </div>
 
-          {/* Smart Format Selector */}
           <div className="space-y-2.5">
-            <span className="block text-xs font-semibold text-[#5A6560]">智能排阵赛制</span>
+            <span className="block text-xs font-bold text-[#8E9AB2]">智能排阵赛制</span>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {FORMAT_OPTIONS.map((opt) => {
                 const selected = format === opt.id;
@@ -187,19 +199,19 @@ export function SetupView({
                     aria-pressed={selected}
                     className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
                       selected
-                        ? 'bg-[#142621] border-[#142621] text-white'
-                        : 'bg-[#F7F8F5] border-[#E4E8E0] text-[#111816] hover:border-[#185A43]'
+                        ? 'bg-[#172238] border-[#D4FF2B] text-white'
+                        : 'bg-[#171E2B] border-white/[0.06] text-[#D8E1F0] hover:border-white/25'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-bold">{opt.title}</span>
                       {selected && (
-                        <span className="text-[11px] font-semibold text-[#D4F34A]">已选择</span>
+                        <span className="text-[11px] font-bold text-[#D4FF2B]">已选择</span>
                       )}
                     </div>
                     <p
                       className={`text-xs mt-1.5 leading-relaxed ${
-                        selected ? 'text-white/75' : 'text-[#5A6560]'
+                        selected ? 'text-[#B8C4DA]' : 'text-[#8E9AB2]'
                       }`}
                     >
                       {opt.desc}
@@ -210,10 +222,9 @@ export function SetupView({
             </div>
           </div>
 
-          {/* Courts, Rounds, Scoring */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-[#EFF2EC]">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/[0.06]">
             <div>
-              <span className="block text-xs font-semibold text-[#5A6560] mb-1.5">
+              <span className="block text-xs font-bold text-[#8E9AB2] mb-1.5">
                 开场数量（最多 {maxCourts} 片）
               </span>
               <div className="grid grid-cols-3 gap-1.5">
@@ -225,10 +236,10 @@ export function SetupView({
                       type="button"
                       disabled={disabled}
                       onClick={() => setCourtCount(n)}
-                      className={`min-h-[44px] rounded-xl font-mono tabular-nums text-sm font-semibold border transition-colors cursor-pointer disabled:opacity-35 disabled:cursor-not-allowed ${
+                      className={`min-h-[44px] rounded-xl font-mono tabular-nums text-sm font-bold border transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                         courtCount === n
-                          ? 'bg-[#142621] text-white border-[#142621]'
-                          : 'bg-[#F7F8F5] text-[#142621] border-[#E4E8E0]'
+                          ? 'bg-[#D4FF2B] text-[#080B10] border-[#D4FF2B]'
+                          : 'bg-[#171E2B] text-[#F4F7FB] border-white/[0.08]'
                       }`}
                     >
                       {n}片
@@ -240,13 +251,13 @@ export function SetupView({
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="setup-rounds" className="text-xs font-semibold text-[#5A6560]">
+                <label htmlFor="setup-rounds" className="text-xs font-bold text-[#8E9AB2]">
                   总轮次数
                 </label>
                 <button
                   type="button"
                   onClick={() => setTotalRounds(recommendedRounds)}
-                  className="text-[11px] font-medium text-[#185A43] hover:underline cursor-pointer"
+                  className="text-[11px] font-semibold text-[#D4FF2B] hover:underline cursor-pointer"
                 >
                   推荐 {recommendedRounds} 轮
                 </button>
@@ -257,23 +268,25 @@ export function SetupView({
                 min={1}
                 max={15}
                 value={totalRounds}
-                onChange={(e) => setTotalRounds(Math.max(1, Math.min(15, Number(e.target.value) || 1)))}
-                className="w-full min-h-[44px] rounded-xl border border-[#D8DFD3] bg-[#F7F8F5] px-3.5 text-sm font-mono tabular-nums text-[#111816] focus:outline-none focus:border-[#185A43] focus:bg-white"
+                onChange={(e) =>
+                  setTotalRounds(Math.max(1, Math.min(15, Number(e.target.value) || 1)))
+                }
+                className="w-full min-h-[44px] rounded-xl border border-white/[0.1] bg-[#0A0E16] px-3.5 text-sm font-mono tabular-nums text-[#F4F7FB] focus:outline-none focus:border-[#D4FF2B]"
               />
             </div>
 
             <div>
-              <span className="block text-xs font-semibold text-[#5A6560] mb-1.5">单局分制</span>
+              <span className="block text-xs font-bold text-[#8E9AB2] mb-1.5">单局分制</span>
               <div className="grid grid-cols-3 gap-1.5">
                 {([11, 15, 21] as ScoringTarget[]).map((pts) => (
                   <button
                     key={pts}
                     type="button"
                     onClick={() => setTargetScore(pts)}
-                    className={`min-h-[44px] rounded-xl font-mono tabular-nums text-sm font-semibold border transition-colors cursor-pointer ${
+                    className={`min-h-[44px] rounded-xl font-mono tabular-nums text-sm font-bold border transition-colors cursor-pointer ${
                       targetScore === pts
-                        ? 'bg-[#142621] text-white border-[#142621]'
-                        : 'bg-[#F7F8F5] text-[#142621] border-[#E4E8E0]'
+                        ? 'bg-[#D4FF2B] text-[#080B10] border-[#D4FF2B]'
+                        : 'bg-[#171E2B] text-[#F4F7FB] border-white/[0.08]'
                     }`}
                   >
                     {pts}
@@ -283,36 +296,35 @@ export function SetupView({
             </div>
           </div>
 
-          {/* Win by 2 + Timer */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[#EFF2EC]">
-            <label className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[#F7F8F5] cursor-pointer">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-white/[0.06]">
+            <label className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[#171E2B] border border-white/[0.06] cursor-pointer">
               <div>
-                <div className="text-sm font-semibold text-[#142621]">净胜 2 分校验</div>
-                <div className="text-xs text-[#5A6560]">达到目标分时提醒需净胜 2 分</div>
+                <div className="text-sm font-bold text-[#F4F7FB]">净胜 2 分校验</div>
+                <div className="text-xs text-[#8E9AB2]">达到目标分时提醒需净胜 2 分</div>
               </div>
               <input
                 type="checkbox"
                 checked={winByTwo}
                 onChange={(e) => setWinByTwo(e.target.checked)}
-                className="w-5 h-5 accent-[#185A43] cursor-pointer"
+                className="w-5 h-5 accent-[#D4FF2B] cursor-pointer"
               />
             </label>
 
-            <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[#F7F8F5]">
+            <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-[#171E2B] border border-white/[0.06]">
               <div>
-                <label htmlFor="setup-minutes" className="text-sm font-semibold text-[#142621]">
+                <label htmlFor="setup-minutes" className="text-sm font-bold text-[#F4F7FB]">
                   单轮计时提醒
                 </label>
-                <div className="text-xs text-[#5A6560]">场上倒计时默认时长（分钟）</div>
+                <div className="text-xs text-[#8E9AB2]">场上倒计时默认时长（分钟）</div>
               </div>
               <select
                 id="setup-minutes"
                 value={roundMinutes}
                 onChange={(e) => setRoundMinutes(Number(e.target.value))}
-                className="min-h-[40px] rounded-lg border border-[#D8DFD3] bg-white px-2.5 text-sm font-mono tabular-nums text-[#142621]"
+                className="min-h-[40px] rounded-lg border border-white/[0.1] bg-[#0A0E16] px-2.5 text-sm font-mono tabular-nums text-[#F4F7FB]"
               >
                 {[8, 10, 12, 15, 20].map((m) => (
-                  <option key={m} value={m}>
+                  <option key={m} value={m} className="bg-[#111620]">
                     {m} 分钟
                   </option>
                 ))}
@@ -320,74 +332,103 @@ export function SetupView({
             </div>
           </div>
 
+          {!canPublish && (
+            <div className="rounded-2xl bg-black/35 border border-[var(--theme-accent)]/40 p-3.5 flex items-center justify-between gap-3 text-xs">
+              <span className="text-white/85">
+                当前未以管理员身份登录。请前往「我的」使用管理员或超管账号（如 Jack）登录后发布赛制。
+              </span>
+              <button
+                type="button"
+                onClick={onPromptLogin}
+                className="px-3 py-1.5 rounded-lg theme-accent-bg font-bold whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                去登录
+              </button>
+            </div>
+          )}
+
           <button
             type="submit"
-            className="w-full min-h-[48px] rounded-xl bg-[#142621] text-white text-sm font-semibold hover:bg-[#1E3830] active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full min-h-[48px] rounded-xl theme-accent-bg text-sm font-bold active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
           >
-            <RefreshCw className="w-4 h-4 text-[#D4F34A]" aria-hidden="true" />
-            <span>生成智能赛程</span>
+            {canPublish ? (
+              <>
+                <RefreshCw className="w-4 h-4" aria-hidden="true" />
+                <span>发布赛制并生成智能赛程</span>
+              </>
+            ) : (
+              <>
+                <Lock className="w-4 h-4" aria-hidden="true" />
+                <span>登录管理员账号后发布赛制</span>
+              </>
+            )}
           </button>
         </form>
 
-        {/* Right 4-col Fairness Diagnostics & Backup */}
         <aside className="lg:col-span-4 space-y-4">
-          <section className="bg-white rounded-2xl border border-[#E4E8E0] p-5 space-y-3.5">
+          <section className="bg-[#111620] rounded-3xl border border-white/[0.08] p-5 space-y-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-[#185A43]" aria-hidden="true" />
-                <h2 className="text-sm font-bold text-[#142621]">当前排阵公平报告</h2>
+                <Sparkles className="w-4 h-4 text-[#D4FF2B]" aria-hidden="true" />
+                <h2 className="text-sm font-bold text-[#F4F7FB]">当前排阵公平报告</h2>
               </div>
-              <span className="font-mono tabular-nums text-base font-bold text-[#185A43]">
+              <span className="font-score italic text-2xl font-extrabold text-[#D4FF2B]">
                 {fairness.compositeScore} / 100
               </span>
             </div>
 
-            <div className="divide-y divide-[#EFF2EC] text-sm">
+            <div className="divide-y divide-white/[0.06] text-sm">
               <div className="py-2.5 flex items-center justify-between">
-                <span className="text-[#5A6560]">搭档不重复率</span>
-                <span className="font-mono tabular-nums font-semibold text-[#142621]">
+                <span className="text-[#8E9AB2]">搭档不重复率</span>
+                <span className="font-mono tabular-nums font-bold text-[#F4F7FB]">
                   {fairness.partnerUniquenessPct}%（重复 {fairness.repeatPartnerCount} 次）
                 </span>
               </div>
               <div className="py-2.5 flex items-center justify-between">
-                <span className="text-[#5A6560]">出场次数范围</span>
-                <span className="font-mono tabular-nums font-semibold text-[#142621]">
+                <span className="text-[#8E9AB2]">出场次数范围</span>
+                <span className="font-mono tabular-nums font-bold text-[#F4F7FB]">
                   {fairness.playCountMin}–{fairness.playCountMax} 场
                 </span>
               </div>
               <div className="py-2.5 flex items-center justify-between">
-                <span className="text-[#5A6560]">平均对局 DUPR 差</span>
-                <span className="font-mono tabular-nums font-semibold text-[#142621]">
+                <span className="text-[#8E9AB2]">平均对局 DUPR 差</span>
+                <span className="font-mono tabular-nums font-bold text-[#F4F7FB]">
                   {fairness.avgSkillGap.toFixed(2)}
                 </span>
               </div>
               <div className="py-2.5 flex items-center justify-between">
-                <span className="text-[#5A6560]">混双组合占比</span>
-                <span className="font-mono tabular-nums font-semibold text-[#142621]">
+                <span className="text-[#8E9AB2]">混双组合占比</span>
+                <span className="font-mono tabular-nums font-bold text-[#F4F7FB]">
                   {fairness.mixedTeamPct}%
                 </span>
               </div>
             </div>
           </section>
 
-          <section className="bg-white rounded-2xl border border-[#E4E8E0] p-5 space-y-2.5">
-            <h2 className="text-sm font-bold text-[#142621]">数据与存档</h2>
-            <p className="text-xs text-[#5A6560]">
-              所有比分与排阵均自动保存在本机，断网也能在球场流畅使用。
+          <section className="bg-[#111620] rounded-3xl border border-white/[0.08] p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-[#F4F7FB]">数据存储与云端同步</h2>
+              {roomCode && (
+                <span className="font-mono text-xs font-bold text-[#D4FF2B]">#{roomCode}</span>
+              )}
+            </div>
+            <p className="text-xs text-[#8E9AB2] leading-relaxed">
+              默认实时缓存在本机 <code className="font-mono text-[#D4FF2B]">localStorage</code>，支持一键推送至
+              Cloudflare KV 云端房间，让同场球友扫码同步查看比分。
             </p>
-            <div className="grid grid-cols-2 gap-2.5 pt-2">
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
               <button
                 type="button"
-                onClick={handleExportJson}
-                className="min-h-[44px] px-3 rounded-xl border border-[#E4E8E0] bg-[#F7F8F5] text-xs font-semibold text-[#142621] hover:border-[#185A43] flex items-center justify-center gap-1.5 cursor-pointer"
+                onClick={onOpenCloudSync}
+                className="min-h-[44px] px-3 rounded-xl bg-[#D4FF2B] text-[#080B10] text-xs font-bold hover:bg-[#E1FF61] flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Download className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>导出存档</span>
+                <Cloud className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>云同步 / 备份</span>
               </button>
               <button
                 type="button"
                 onClick={onResetDemo}
-                className="min-h-[44px] px-3 rounded-xl border border-[#E4E8E0] bg-[#F7F8F5] text-xs font-semibold text-[#5A6560] hover:text-[#B84A39] hover:border-[#B84A39]/40 flex items-center justify-center gap-1.5 cursor-pointer"
+                className="min-h-[44px] px-3 rounded-xl border border-white/[0.08] bg-[#171E2B] text-xs font-semibold text-[#9AA5BC] hover:text-[#FF6448] hover:border-[#FF6448]/40 flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RotateCcw className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>重置示例</span>

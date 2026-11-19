@@ -5,6 +5,7 @@ import {
   calculateStandings,
   generateNextMexicanoRound,
   generateSmartSchedule,
+  getPlayerScheduleTimeline,
   rescheduleRemainingRounds,
   swapPlayersInRound,
   validateMatchScore,
@@ -285,3 +286,54 @@ test('validateMatchScore rejects draws and warns on win-by-two', () => {
   assert.equal(warn.valid, true);
   assert.ok(warn.warning !== null);
 });
+
+test('getPlayerScheduleTimeline tracks personal court, partner, score, and resting rounds', () => {
+  const players = makePlayers(5);
+  const playerMap = new Map(players.map((p) => [p.id, p]));
+  const rounds = [
+    {
+      roundNumber: 1,
+      restingPlayerIds: ['p5'],
+      generatedMode: 'classic' as const,
+      matches: [
+        {
+          id: 'r1-c1',
+          roundNumber: 1,
+          courtNumber: 1,
+          teamA: ['p1', 'p2'] as [string, string],
+          teamB: ['p3', 'p4'] as [string, string],
+          scoreA: 11,
+          scoreB: 6,
+          status: 'completed' as const,
+        },
+      ],
+    },
+    {
+      roundNumber: 2,
+      restingPlayerIds: ['p1'],
+      generatedMode: 'classic' as const,
+      matches: [
+        {
+          id: 'r2-c1',
+          roundNumber: 2,
+          courtNumber: 1,
+          teamA: ['p2', 'p3'] as [string, string],
+          teamB: ['p4', 'p5'] as [string, string],
+          scoreA: null,
+          scoreB: null,
+          status: 'pending' as const,
+        },
+      ],
+    },
+  ];
+
+  const p1Timeline = getPlayerScheduleTimeline('p1', rounds, playerMap);
+  assert.equal(p1Timeline.length, 2);
+  assert.equal(p1Timeline[0].status, 'win');
+  assert.equal(p1Timeline[0].partnerName, '球员2');
+  assert.equal(p1Timeline[0].myScore, 11);
+  assert.equal(p1Timeline[0].oppScore, 6);
+  assert.equal(p1Timeline[1].status, 'resting');
+  assert.equal(p1Timeline[1].courtNumber, null);
+});
+

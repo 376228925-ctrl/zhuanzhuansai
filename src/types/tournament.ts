@@ -1,10 +1,32 @@
 export type Gender = 'M' | 'F' | 'U';
 
-export type TournamentFormat = 'classic' | 'balanced' | 'mixed' | 'mexicano';
+export type TournamentFormat = 'classic' | 'balanced' | 'mixed' | 'mexicano' | 'ai_smart';
+
+export type AiMatchmakeGoal =
+  | 'balanced_clash'
+  | 'carry_mix'
+  | 'rematch_rivalry'
+  | 'mixed_priority';
 
 export type ScoringTarget = 11 | 15 | 21;
 
-export type AppTab = 'schedule' | 'standings' | 'players' | 'setup';
+export type AppTab = 'schedule' | 'standings' | 'players' | 'setup' | 'profile';
+
+export type UserRole = 'super_admin' | 'admin' | 'member';
+
+export interface UserAccount {
+  id: string;
+  username: string;
+  passwordHash: string;
+  role: UserRole;
+  displayName: string;
+  gender: Gender;
+  dupr: number;
+  handedness: 'right' | 'left';
+  playStyle: string;
+  bio: string;
+  createdAt: number;
+}
 
 export interface Player {
   id: string;
@@ -13,6 +35,18 @@ export interface Player {
   rating: number; // DUPR-style 2.0 - 5.5
   active: boolean; // false = paused / left mid-tournament
   joinedRound: number;
+}
+
+export interface PlayerCareerRecord {
+  name: string;
+  games: number;
+  wins: number;
+  losses: number;
+  pointDiff: number;
+  estimatedDupr: number;
+  recentForm: Array<'W' | 'L'>;
+  recordedMatchIds: string[];
+  lastPlayedAt: number;
 }
 
 export interface Match {
@@ -25,6 +59,7 @@ export interface Match {
   scoreB: number | null;
   status: 'pending' | 'completed';
   completedAt?: number;
+  aiReason?: string;
 }
 
 export interface Round {
@@ -47,6 +82,8 @@ export interface TournamentConfig {
 
 export interface TournamentState {
   id: string;
+  sessionDate?: string; // YYYY-MM-DD calendar date
+  publishedBy?: string; // Organizer display name
   createdAt: number;
   updatedAt: number;
   seed: number;
@@ -54,6 +91,22 @@ export interface TournamentState {
   players: Player[];
   rounds: Round[];
   rosterDirty: boolean; // true when players changed after schedule generation
+}
+
+export interface PersonalMatchRecord {
+  sessionId: string;
+  sessionDate: string;
+  sessionTitle: string;
+  venue: string;
+  roundNumber: number;
+  courtNumber: number;
+  partnerName: string;
+  opponentNames: [string, string];
+  myScore: number;
+  oppScore: number;
+  won: boolean;
+  pointDiff: number;
+  completedAt: number;
 }
 
 export interface PartnerRecord {

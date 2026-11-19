@@ -484,9 +484,12 @@ export function generateSmartSchedule(
       resting,
       roundNum,
       history,
-      config.format === 'mexicano' ? 'balanced' : config.format,
+      config.format === 'mexicano' || config.format === 'ai_smart' ? 'balanced' : config.format,
       rng
     );
+    if (config.format === 'ai_smart') {
+      round.generatedMode = 'ai_smart';
+    }
     recordRoundIntoHistory(history, round);
     rounds.push(round);
   }
@@ -938,6 +941,7 @@ export function formatWeChatReport(state: TournamentState, standings: PlayerStan
     balanced: '水平均衡转',
     mixed: '混双优选转',
     mexicano: '胜者升场制',
+    ai_smart: 'AI 智适应排阵',
   };
 
   const lines: string[] = [
@@ -965,3 +969,68 @@ export function formatWeChatReport(state: TournamentState, standings: PlayerStan
 
   return lines.join('\n');
 }
+
+export interface PlayerRoundTimelineItem {
+  roundNumber: number;
+  status: 'resting' | 'pending' | 'win' | 'loss';
+  courtNumber: number | null;
+  matchId: string | null;
+  partnerName: string | null;
+  opponentNames: [string, string] | null;
+  myScore: number | null;
+  oppScore: number | null;
+}
+
+/**
+ * Returns a player's round-by-round personal schedule & match results across the entire tournament.
+ */
+export function getPlayerScheduleTimeline(
+  playerId: string,
+  rounds: Round[],
+  playerMap: Map<string, Player>
+): PlayerRoundTimelineItem[] {
+  return rounds.map((round) => {
+    for (const match of round.matches) {
+      const inA = match.teamA.includes(playerId);
+      const inB = match.teamB.includes(playerId);
+      if (!inA && !inB) continue;
+
+      const myTeam = inA ? match.teamA : match.teamB;
+      const oppTeam = inA ? match.teamB : match.teamA;
+      const partnerId = myTeam[0] === playerId ? myTeam[1] : myTeam[0];
+      const myScore = inA ? match.scoreA : match.scoreB;
+      const oppScore = inA ? match.scoreB : match.scoreA;
+
+      let status: PlayerRoundTimelineItem['status'] = 'pending';
+      if (match.status === 'completed' && myScore !== null && oppScore !== null) {
+        status = myScore > oppScore ? 'win' : 'loss';
+      }
+
+      return {
+        roundNumber: round.roundNumber,
+        status,
+        courtNumber: match.courtNumber,
+        matchId: match.id,
+        partnerName: playerMap.get(partnerId)?.name ?? '未知球友',
+        opponentNames: [
+          playerMap.get(oppTeam[0])?.name ?? '球友',
+          playerMap.get(oppTeam[1])?.name ?? '球友',
+        ],
+        myScore,
+        oppScore,
+      };
+    }
+
+    return {
+      roundNumber: round.roundNumber,
+      status: 'resting',
+      courtNumber: null,
+      matchId: null,
+      partnerName: null,
+      opponentNames: null,
+      myScore: null,
+      oppScore: null,
+    };
+  });
+}
+
